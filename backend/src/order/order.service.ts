@@ -3,12 +3,17 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { OrderDTO } from './dto/order.dto';
-import { FilmsRepository } from '../repository/films.repository';
+import { FilmEntity } from '../films/entities/film_postgres.entity';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly repository: FilmsRepository) {}
+  constructor(
+    @InjectRepository(FilmEntity)
+    private readonly repository: Repository<FilmEntity>,
+  ) {}
 
   async create(createOrderDTO: OrderDTO) {
     const { tickets } = createOrderDTO;
@@ -16,7 +21,10 @@ export class OrderService {
     for (const ticket of tickets) {
       const { film, session, row, seat } = ticket;
 
-      const findFilm = await this.repository.findOne(film);
+      const findFilm = await this.repository.findOne({
+        where: { id: film },
+        relations: ['schedule'],
+      });
       if (!findFilm) {
         throw new NotFoundException(`Фильм ${film} не найден.`);
       }
@@ -29,15 +37,21 @@ export class OrderService {
       }
 
       const row_seat = `${row}:${seat}`;
-      if (schedule.taken.includes(row_seat)) {
+
+      const seats_taken = schedule.taken.split(',');
+      if (seats_taken.includes(row_seat)) {
         throw new BadRequestException(
           `Ряд ${row} место ${seat} на фильм '${findFilm.title}' на ${schedule.daytime} уже занято.`,
         );
       }
+      if (schedule.taken) {
+        const newTaken = schedule.taken.concat(`,${row_seat}`);
+        schedule.taken = newTaken;
+      } else {
+        schedule.taken = row_seat;
+      }
 
-      schedule.taken.push(row_seat);
-
-      await findFilm.save();
+      await this.repository.save(findFilm);
     }
 
     return { items: tickets, total: tickets.length };

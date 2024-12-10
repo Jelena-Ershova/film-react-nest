@@ -38,18 +38,13 @@ export class OrderService {
 
       const row_seat = `${row}:${seat}`;
 
-      const seats_taken = schedule.taken.split(',');
-      if (seats_taken.includes(row_seat)) {
+      if (schedule.taken.includes(row_seat)) {
         throw new BadRequestException(
           `Ряд ${row} место ${seat} на фильм '${findFilm.title}' на ${schedule.daytime} уже занято.`,
         );
       }
-      if (schedule.taken) {
-        const newTaken = schedule.taken.concat(`,${row_seat}`);
-        schedule.taken = newTaken;
-      } else {
-        schedule.taken = row_seat;
-      }
+
+      schedule.taken.push(row_seat);
 
       await this.repository.save(findFilm);
     }

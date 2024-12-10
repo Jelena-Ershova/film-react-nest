@@ -36,11 +36,12 @@ export class ScheduleEntity {
   })
   seats: number;
 
-  @Column('text', {
+  @Column('simple-array', {
     comment: 'Ряд:Место',
     array: true,
+    default: [],
   })
-  taken: string;
+  taken: string[];
 
   @ManyToOne(() => FilmEntity, (film) => film.schedule)
   film: FilmEntity;
